@@ -7,10 +7,10 @@ import {
   Printer,
   Wifi,
   Search,
-  Filter,
   Plus,
   MoreHorizontal,
   AlertTriangle,
+  Package,
 } from "lucide-react";
 import {
   Table,
@@ -39,144 +39,58 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useAssets, useAssetStats } from "@/hooks/useAssets";
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface Asset {
-  id: string;
-  name: string;
-  type: "computer" | "laptop" | "smartphone" | "server" | "printer" | "network";
-  serialNumber: string;
-  model: string;
-  manufacturer: string;
-  status: "active" | "inactive" | "maintenance" | "retired";
-  assignedTo?: {
-    name: string;
-    avatar?: string;
-  };
-  location: string;
-  warrantyExpiry?: string;
-  lastUpdated: string;
-}
-
-const mockAssets: Asset[] = [
-  {
-    id: "1",
-    name: "PC-COMPTA-001",
-    type: "computer",
-    serialNumber: "SN-2024-001234",
-    model: "OptiPlex 7090",
-    manufacturer: "Dell",
-    status: "active",
-    assignedTo: { name: "Marie Martin" },
-    location: "Bureau 201 - Comptabilité",
-    warrantyExpiry: "2026-03-15",
-    lastUpdated: "2024-01-10",
-  },
-  {
-    id: "2",
-    name: "LAPTOP-DEV-015",
-    type: "laptop",
-    serialNumber: "SN-2023-005678",
-    model: "ThinkPad X1 Carbon",
-    manufacturer: "Lenovo",
-    status: "active",
-    assignedTo: { name: "Pierre Durand" },
-    location: "Bureau 305 - Développement",
-    warrantyExpiry: "2025-06-20",
-    lastUpdated: "2024-01-12",
-  },
-  {
-    id: "3",
-    name: "PHONE-COM-008",
-    type: "smartphone",
-    serialNumber: "SN-2024-009876",
-    model: "iPhone 15 Pro",
-    manufacturer: "Apple",
-    status: "active",
-    assignedTo: { name: "Sophie Bernard" },
-    location: "Mobile",
-    warrantyExpiry: "2025-09-01",
-    lastUpdated: "2024-01-08",
-  },
-  {
-    id: "4",
-    name: "SRV-PROD-001",
-    type: "server",
-    serialNumber: "SN-2022-112233",
-    model: "PowerEdge R750",
-    manufacturer: "Dell",
-    status: "active",
-    location: "Salle serveur - Rack A",
-    warrantyExpiry: "2024-02-28",
-    lastUpdated: "2024-01-15",
-  },
-  {
-    id: "5",
-    name: "PRINT-RDC-001",
-    type: "printer",
-    serialNumber: "SN-2021-445566",
-    model: "LaserJet Enterprise M507",
-    manufacturer: "HP",
-    status: "maintenance",
-    location: "RDC - Accueil",
-    lastUpdated: "2024-01-14",
-  },
-  {
-    id: "6",
-    name: "AP-WIFI-ETG1",
-    type: "network",
-    serialNumber: "SN-2023-778899",
-    model: "UniFi U6 Pro",
-    manufacturer: "Ubiquiti",
-    status: "active",
-    location: "Étage 1 - Couloir",
-    warrantyExpiry: "2026-01-10",
-    lastUpdated: "2024-01-11",
-  },
-];
-
-const typeIcons = {
-  computer: Monitor,
+const typeIcons: Record<string, any> = {
+  desktop: Monitor,
   laptop: Laptop,
   smartphone: Smartphone,
+  tablet: Smartphone,
   server: Server,
   printer: Printer,
   network: Wifi,
+  other: Package,
 };
 
-const typeLabels = {
-  computer: "Ordinateur",
+const typeLabels: Record<string, string> = {
+  desktop: "Ordinateur",
   laptop: "Portable",
   smartphone: "Smartphone",
+  tablet: "Tablette",
   server: "Serveur",
   printer: "Imprimante",
   network: "Réseau",
+  other: "Autre",
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   active: "Actif",
-  inactive: "Inactif",
   maintenance: "Maintenance",
   retired: "Retiré",
+  lost: "Perdu",
 };
 
-const statusVariants = {
+const statusVariants: Record<string, string> = {
   active: "status-resolved",
-  inactive: "status-closed",
   maintenance: "status-pending",
   retired: "status-closed",
-} as const;
+  lost: "destructive",
+};
 
 export function InventoryList() {
+  const { data: assets, isLoading } = useAssets();
+  const { data: stats } = useAssetStats();
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const filteredAssets = mockAssets.filter((asset) => {
+  const filteredAssets = (assets || []).filter((asset) => {
     const matchesSearch =
       asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.model.toLowerCase().includes(searchQuery.toLowerCase());
+      asset.asset_tag.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (asset.serial_number?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesType = typeFilter === "all" || asset.type === typeFilter;
     const matchesStatus = statusFilter === "all" || asset.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
@@ -196,7 +110,7 @@ export function InventoryList() {
     );
   };
 
-  const isWarrantyExpiringSoon = (date?: string) => {
+  const isWarrantyExpiringSoon = (date?: string | null) => {
     if (!date) return false;
     const expiry = new Date(date);
     const today = new Date();
@@ -206,13 +120,26 @@ export function InventoryList() {
     return daysUntilExpiry <= 90 && daysUntilExpiry > 0;
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-[400px] rounded-xl" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {Object.entries(typeLabels).map(([type, label]) => {
-          const count = mockAssets.filter((a) => a.type === type).length;
-          const Icon = typeIcons[type as keyof typeof typeIcons];
+        {Object.entries(typeLabels).slice(0, 4).map(([type, label]) => {
+          const count = stats?.byType?.[type] || 0;
+          const Icon = typeIcons[type] || Package;
           return (
             <div
               key={type}
@@ -277,133 +204,140 @@ export function InventoryList() {
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="glass-card rounded-xl border border-border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={selectedAssets.length === filteredAssets.length}
-                  onCheckedChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Équipement</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>N° Série</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead>Assigné à</TableHead>
-              <TableHead>Localisation</TableHead>
-              <TableHead>Garantie</TableHead>
-              <TableHead className="w-12"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAssets.map((asset) => {
-              const Icon = typeIcons[asset.type];
-              const warrantyWarning = isWarrantyExpiringSoon(asset.warrantyExpiry);
+      {/* Empty State */}
+      {filteredAssets.length === 0 && (
+        <div className="glass-card rounded-xl border border-border p-12 text-center">
+          <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Aucun équipement trouvé</p>
+        </div>
+      )}
 
-              return (
-                <TableRow key={asset.id} className="group">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedAssets.includes(asset.id)}
-                      onCheckedChange={() => toggleSelect(asset.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-secondary">
-                        <Icon className="h-4 w-4" />
+      {/* Table */}
+      {filteredAssets.length > 0 && (
+        <div className="glass-card rounded-xl border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedAssets.length === filteredAssets.length && filteredAssets.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>Équipement</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>N° Série</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Assigné à</TableHead>
+                <TableHead>Localisation</TableHead>
+                <TableHead>Garantie</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAssets.map((asset) => {
+                const Icon = typeIcons[asset.type] || Package;
+                const warrantyWarning = isWarrantyExpiringSoon(asset.warranty_expires);
+
+                return (
+                  <TableRow key={asset.id} className="group">
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedAssets.includes(asset.id)}
+                        onCheckedChange={() => toggleSelect(asset.id)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-secondary">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{asset.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {asset.manufacturer} {asset.model}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{asset.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {asset.manufacturer} {asset.model}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{typeLabels[asset.type]}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-sm">{asset.serialNumber}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariants[asset.status]}>
-                      {statusLabels[asset.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {asset.assignedTo ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={asset.assignedTo.avatar} />
-                          <AvatarFallback className="text-xs">
-                            {asset.assignedTo.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{asset.assignedTo.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        Non assigné
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{asset.location}</span>
-                  </TableCell>
-                  <TableCell>
-                    {asset.warrantyExpiry ? (
-                      <div className="flex items-center gap-1">
-                        {warrantyWarning && (
-                          <AlertTriangle className="h-4 w-4 text-warning" />
-                        )}
-                        <span
-                          className={cn(
-                            "text-sm",
-                            warrantyWarning && "text-warning"
-                          )}
-                        >
-                          {asset.warrantyExpiry}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{typeLabels[asset.type] || asset.type}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-sm">{asset.serial_number || asset.asset_tag}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariants[asset.status] as any}>
+                        {statusLabels[asset.status] || asset.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {asset.assigned_user ? (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={asset.assigned_user.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {asset.assigned_user.full_name
+                                ?.split(" ")
+                                .map((n) => n[0])
+                                .join("") || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{asset.assigned_user.full_name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          Non assigné
                         </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="opacity-0 group-hover:opacity-100"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Voir détails</DropdownMenuItem>
-                        <DropdownMenuItem>Modifier</DropdownMenuItem>
-                        <DropdownMenuItem>Historique</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Supprimer
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{asset.location || "-"}</span>
+                    </TableCell>
+                    <TableCell>
+                      {asset.warranty_expires ? (
+                        <div className="flex items-center gap-1">
+                          {warrantyWarning && (
+                            <AlertTriangle className="h-4 w-4 text-warning" />
+                          )}
+                          <span
+                            className={cn(
+                              "text-sm",
+                              warrantyWarning && "text-warning"
+                            )}
+                          >
+                            {asset.warranty_expires}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="opacity-0 group-hover:opacity-100"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>Voir détails</DropdownMenuItem>
+                          <DropdownMenuItem>Modifier</DropdownMenuItem>
+                          <DropdownMenuItem>Historique</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
