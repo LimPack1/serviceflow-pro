@@ -1,4 +1,4 @@
-import { Bell, Search, Moon, Sun, Menu } from "lucide-react";
+import { Bell, Search, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate, Link } from "react-router-dom";
 
 interface AppHeaderProps {
   title?: string;
@@ -20,11 +22,24 @@ interface AppHeaderProps {
 
 export function AppHeader({ title, subtitle }: AppHeaderProps) {
   const [isDark, setIsDark] = useState(true);
+  const { profile, user, signOut, isAdmin, isAgent } = useAuth();
+  const navigate = useNavigate();
 
   const toggleTheme = () => {
     setIsDark(!isDark);
     document.documentElement.classList.toggle("light");
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const userInitials = profile?.full_name
+    ?.split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase() || user?.email?.[0]?.toUpperCase() || '?';
 
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-40">
@@ -119,27 +134,39 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2 px-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://github.com/shadcn.png" />
-                  <AvatarFallback>JD</AvatarFallback>
+                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
-                <span className="hidden lg:inline text-sm font-medium">Jean Dupont</span>
+                <span className="hidden lg:inline text-sm font-medium">
+                  {profile?.full_name || user?.email?.split('@')[0]}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col">
-                  <span>Jean Dupont</span>
+                  <span>{profile?.full_name || 'Utilisateur'}</span>
                   <span className="text-xs text-muted-foreground font-normal">
-                    jean.dupont@company.com
+                    {user?.email}
                   </span>
+                  <div className="flex gap-1 mt-1">
+                    {isAdmin && <Badge variant="destructive" className="text-xs">Admin</Badge>}
+                    {isAgent && !isAdmin && <Badge variant="default" className="text-xs">Agent</Badge>}
+                  </div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Mon profil</DropdownMenuItem>
-              <DropdownMenuItem>Mes tickets</DropdownMenuItem>
-              <DropdownMenuItem>Préférences</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/settings">Mon profil</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/tickets">Mes tickets</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/settings">Préférences</Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>
                 Se déconnecter
               </DropdownMenuItem>
             </DropdownMenuContent>
