@@ -583,6 +583,8 @@ export type Database = {
         Returns: undefined
       }
       is_agent_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_front_office: { Args: { _user_id: string }; Returns: boolean }
+      is_it_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "agent" | "manager" | "user"
