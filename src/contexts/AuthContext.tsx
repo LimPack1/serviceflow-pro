@@ -24,9 +24,14 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  // Role checks
   isAdmin: boolean;
   isAgent: boolean;
   isManager: boolean;
+  isTechnician: boolean; // Alias for manager (IT staff non-admin)
+  isITStaff: boolean; // manager or admin
+  isFrontOffice: boolean; // user or agent only
+  primaryRole: 'admin' | 'manager' | 'agent' | 'user';
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -113,6 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const hasRole = (role: string) => roles.some(r => r.role === role);
+  
+  const isAdmin = hasRole('admin');
+  const isManager = hasRole('manager');
+  const isAgent = hasRole('agent') || isAdmin;
+  const isTechnician = isManager; // Alias: manager = technician in IT context
+  const isITStaff = isManager || isAdmin; // Back office roles
+  const isFrontOffice = !isITStaff; // Front office: user or agent only
+  
+  // Determine primary role (highest privilege)
+  const getPrimaryRole = (): 'admin' | 'manager' | 'agent' | 'user' => {
+    if (hasRole('admin')) return 'admin';
+    if (hasRole('manager')) return 'manager';
+    if (hasRole('agent')) return 'agent';
+    return 'user';
+  };
 
   return (
     <AuthContext.Provider value={{
@@ -124,9 +144,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
-      isAdmin: hasRole('admin'),
-      isAgent: hasRole('agent') || hasRole('admin'),
-      isManager: hasRole('manager') || hasRole('admin')
+      isAdmin,
+      isAgent,
+      isManager,
+      isTechnician,
+      isITStaff,
+      isFrontOffice,
+      primaryRole: getPrimaryRole()
     }}>
       {children}
     </AuthContext.Provider>
