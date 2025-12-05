@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Ticket,
@@ -11,11 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  Bell,
   Plus,
   LogOut,
-  User,
   Building2,
+  AlertTriangle,
+  GitBranch,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface NavItem {
   title: string;
@@ -33,26 +35,59 @@ interface NavItem {
   badge?: number;
 }
 
-const mainNavItems: NavItem[] = [
-  { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
-  { title: "Tickets", url: "/tickets", icon: Ticket, badge: 12 },
-  { title: "Catalogue", url: "/catalog", icon: FolderOpen },
-  { title: "Connaissances", url: "/knowledge", icon: BookOpen },
-  { title: "Inventaire", url: "/inventory", icon: Monitor },
-];
-
-const adminNavItems: NavItem[] = [
-  { title: "Utilisateurs", url: "/users", icon: Users },
-  { title: "Paramètres", url: "/settings", icon: Settings },
-];
-
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { profile, isAdmin, isITStaff, signOut } = useAuth();
+
+  // Build navigation items based on role
+  const getMainNavItems = (): NavItem[] => {
+    const items: NavItem[] = [
+      { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
+      { title: "Tickets", url: "/tickets", icon: Ticket, badge: 12 },
+    ];
+
+    if (isITStaff) {
+      items.push(
+        { title: "Incidents", url: "/tickets?type=incident", icon: AlertTriangle },
+        { title: "Problèmes", url: "/tickets?type=problem", icon: GitBranch },
+        { title: "Changements", url: "/tickets?type=change", icon: FileText }
+      );
+    }
+
+    items.push(
+      { title: "Catalogue", url: "/catalog", icon: FolderOpen },
+      { title: "Connaissances", url: "/knowledge", icon: BookOpen }
+    );
+
+    if (isITStaff) {
+      items.push({ title: "Inventaire", url: "/inventory", icon: Monitor });
+    }
+
+    return items;
+  };
+
+  const getAdminNavItems = (): NavItem[] => {
+    if (!isAdmin) return [];
+    
+    return [
+      { title: "Utilisateurs", url: "/users", icon: Users },
+      { title: "Paramètres", url: "/settings", icon: Settings },
+    ];
+  };
+
+  const mainNavItems = getMainNavItems();
+  const adminNavItems = getAdminNavItems();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
 
   const NavItemComponent = ({ item }: { item: NavItem }) => {
     const isActive = location.pathname === item.url || 
-      (item.url !== "/" && location.pathname.startsWith(item.url));
+      (item.url !== "/" && location.pathname.startsWith(item.url.split('?')[0]));
     
     const content = (
       <NavLink
@@ -107,6 +142,19 @@ export function AppSidebar() {
     return content;
   };
 
+  // Get user initials
+  const getInitials = (name: string | null) => {
+    if (!name) return "U";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  // Get role display name
+  const getRoleDisplay = () => {
+    if (isAdmin) return "Administrateur";
+    if (isITStaff) return "Technicien IT";
+    return "Utilisateur";
+  };
+
   return (
     <aside
       className={cn(
@@ -140,14 +188,14 @@ export function AppSidebar() {
         {collapsed ? (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <Button variant="gradient" size="icon" className="w-full">
+              <Button variant="gradient" size="icon" className="w-full" onClick={() => navigate('/tickets/new')}>
                 <Plus className="h-5 w-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">Nouveau ticket</TooltipContent>
           </Tooltip>
         ) : (
-          <Button variant="gradient" className="w-full justify-start gap-2">
+          <Button variant="gradient" className="w-full justify-start gap-2" onClick={() => navigate('/tickets/new')}>
             <Plus className="h-4 w-4" />
             Nouveau ticket
           </Button>
@@ -178,16 +226,18 @@ export function AppSidebar() {
           ))}
         </div>
 
-        <div className="pt-4 space-y-1">
-          {!collapsed && (
-            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Administration
-            </p>
-          )}
-          {adminNavItems.map((item) => (
-            <NavItemComponent key={item.url} item={item} />
-          ))}
-        </div>
+        {adminNavItems.length > 0 && (
+          <div className="pt-4 space-y-1">
+            {!collapsed && (
+              <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Administration
+              </p>
+            )}
+            {adminNavItems.map((item) => (
+              <NavItemComponent key={item.url} item={item} />
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* User Section */}
@@ -197,16 +247,42 @@ export function AppSidebar() {
           collapsed && "justify-center"
         )}>
           <Avatar className="h-9 w-9">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>JD</AvatarFallback>
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback>{getInitials(profile?.full_name)}</AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Jean Dupont</p>
-              <p className="text-xs text-muted-foreground truncate">Agent IT</p>
+              <p className="text-sm font-medium truncate">{profile?.full_name || 'Utilisateur'}</p>
+              <p className="text-xs text-muted-foreground truncate">{getRoleDisplay()}</p>
             </div>
           )}
         </div>
+        
+        {/* Sign Out Button */}
+        {collapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="w-full mt-2 text-muted-foreground hover:text-destructive"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Déconnexion</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button 
+            variant="ghost" 
+            className="w-full mt-2 justify-start text-muted-foreground hover:text-destructive"
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Déconnexion
+          </Button>
+        )}
       </div>
 
       {/* Collapse Toggle */}
