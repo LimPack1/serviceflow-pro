@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   AlertTriangle,
   Package,
+  UserPlus,
 } from "lucide-react";
 import {
   Table,
@@ -36,11 +37,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAssets, useAssetStats } from "@/hooks/useAssets";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AssetAssignDialog } from "./AssetAssignDialog";
 
 const typeIcons: Record<string, any> = {
   desktop: Monitor,
@@ -85,6 +88,17 @@ export function InventoryList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedAssetForAssign, setSelectedAssetForAssign] = useState<{
+    id: string;
+    name: string;
+    assigned_user?: {
+      id: string;
+      full_name: string | null;
+      email: string;
+      avatar_url: string | null;
+    } | null;
+  } | null>(null);
 
   const filteredAssets = (assets || []).filter((asset) => {
     const matchesSearch =
@@ -118,6 +132,11 @@ export function InventoryList() {
       (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
     );
     return daysUntilExpiry <= 90 && daysUntilExpiry > 0;
+  };
+
+  const handleOpenAssignDialog = (asset: typeof selectedAssetForAssign) => {
+    setSelectedAssetForAssign(asset);
+    setAssignDialogOpen(true);
   };
 
   if (isLoading) {
@@ -273,7 +292,14 @@ export function InventoryList() {
                     </TableCell>
                     <TableCell>
                       {asset.assigned_user ? (
-                        <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenAssignDialog({
+                            id: asset.id,
+                            name: asset.name,
+                            assigned_user: asset.assigned_user
+                          })}
+                          className="flex items-center gap-2 hover:bg-secondary/50 rounded-lg p-1 -m-1 transition-colors"
+                        >
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={asset.assigned_user.avatar_url || undefined} />
                             <AvatarFallback className="text-xs">
@@ -284,11 +310,21 @@ export function InventoryList() {
                             </AvatarFallback>
                           </Avatar>
                           <span className="text-sm">{asset.assigned_user.full_name}</span>
-                        </div>
+                        </button>
                       ) : (
-                        <span className="text-sm text-muted-foreground">
-                          Non assigné
-                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground"
+                          onClick={() => handleOpenAssignDialog({
+                            id: asset.id,
+                            name: asset.name,
+                            assigned_user: null
+                          })}
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Assigner
+                        </Button>
                       )}
                     </TableCell>
                     <TableCell>
@@ -327,6 +363,15 @@ export function InventoryList() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem>Voir détails</DropdownMenuItem>
                           <DropdownMenuItem>Modifier</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleOpenAssignDialog({
+                            id: asset.id,
+                            name: asset.name,
+                            assigned_user: asset.assigned_user
+                          })}>
+                            {asset.assigned_user ? "Changer propriétaire" : "Assigner à un utilisateur"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem>Historique</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -337,6 +382,17 @@ export function InventoryList() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {/* Assign Dialog */}
+      {selectedAssetForAssign && (
+        <AssetAssignDialog
+          open={assignDialogOpen}
+          onOpenChange={setAssignDialogOpen}
+          assetId={selectedAssetForAssign.id}
+          assetName={selectedAssetForAssign.name}
+          currentAssignee={selectedAssetForAssign.assigned_user}
+        />
       )}
     </div>
   );

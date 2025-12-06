@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useInterfaceMode } from "@/contexts/InterfaceModeContext";
 import { 
   Home, 
   PlusCircle, 
@@ -11,7 +12,8 @@ import {
   Sun,
   Moon,
   Menu,
-  X
+  X,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +38,7 @@ const navItems = [
 
 export function UserPortalLayout() {
   const { profile, signOut } = useAuth();
+  const { canSwitchMode, toggleMode, mode } = useInterfaceMode();
   const location = useLocation();
   const [isDark, setIsDark] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -92,6 +95,19 @@ export function UserPortalLayout() {
 
             {/* Right side */}
             <div className="flex items-center gap-2">
+              {/* Switch to SI mode button */}
+              {canSwitchMode && mode === 'user' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleMode}
+                  className="hidden sm:flex gap-2 border-primary/50 bg-primary/10 hover:bg-primary/20"
+                >
+                  <Monitor className="h-4 w-4" />
+                  Mode SI
+                </Button>
+              )}
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -126,6 +142,15 @@ export function UserPortalLayout() {
                       Mon profil
                     </Link>
                   </DropdownMenuItem>
+                  {canSwitchMode && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={toggleMode}>
+                        <Monitor className="mr-2 h-4 w-4" />
+                        Passer en mode SI
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut} className="text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -167,6 +192,19 @@ export function UserPortalLayout() {
                   {item.title}
                 </Link>
               ))}
+              {canSwitchMode && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    toggleMode();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full justify-start gap-3 border-primary/50"
+                >
+                  <Monitor className="h-5 w-5" />
+                  Passer en mode SI
+                </Button>
+              )}
               <div className="pt-2 border-t">
                 <Button
                   variant="ghost"
