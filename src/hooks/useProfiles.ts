@@ -88,3 +88,20 @@ export function useAgents() {
     }
   });
 }
+
+export function useUserAssets(userId: string) {
+  return useQuery({
+    queryKey: ['user-assets', userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('assigned_to', userId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!userId
+  });
+}

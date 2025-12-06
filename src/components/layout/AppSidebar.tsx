@@ -14,9 +14,6 @@ import {
   Plus,
   LogOut,
   Building2,
-  AlertTriangle,
-  GitBranch,
-  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import { InterfaceSwitch } from "./InterfaceSwitch";
 
 interface NavItem {
   title: string;
@@ -41,25 +39,14 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { profile, isAdmin, isITStaff, signOut } = useAuth();
 
-  // Build navigation items based on role
+  // Build navigation items - simplified menu with single Tickets entry
   const getMainNavItems = (): NavItem[] => {
     const items: NavItem[] = [
       { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
       { title: "Tickets", url: "/tickets", icon: Ticket, badge: 12 },
-    ];
-
-    if (isITStaff) {
-      items.push(
-        { title: "Incidents", url: "/tickets?type=incident", icon: AlertTriangle },
-        { title: "Problèmes", url: "/tickets?type=problem", icon: GitBranch },
-        { title: "Changements", url: "/tickets?type=change", icon: FileText }
-      );
-    }
-
-    items.push(
       { title: "Catalogue", url: "/catalog", icon: FolderOpen },
-      { title: "Connaissances", url: "/knowledge", icon: BookOpen }
-    );
+      { title: "Connaissances", url: "/knowledge", icon: BookOpen },
+    ];
 
     if (isITStaff) {
       items.push({ title: "Inventaire", url: "/inventory", icon: Monitor });
@@ -181,6 +168,11 @@ export function AppSidebar() {
             <Building2 className="w-6 h-6 text-primary-foreground" />
           </div>
         )}
+      </div>
+
+      {/* Interface Switch */}
+      <div className={cn("p-3 border-b border-sidebar-border", collapsed && "px-2")}>
+        <InterfaceSwitch collapsed={collapsed} />
       </div>
 
       {/* Quick Actions */}
