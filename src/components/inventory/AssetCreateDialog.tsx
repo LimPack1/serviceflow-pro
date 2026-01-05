@@ -336,14 +336,14 @@ export function AssetCreateDialog({ open, onOpenChange }: AssetCreateDialogProps
                 render={({ field }) => (
                   <FormItem className="col-span-2">
                     <FormLabel>Affecter à un utilisateur</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} value={field.value || "__none__"}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionner un utilisateur (optionnel)" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Aucun</SelectItem>
+                        <SelectItem value="__none__">Aucun</SelectItem>
                         {profiles?.map((profile) => (
                           <SelectItem key={profile.id} value={profile.id}>
                             {profile.full_name || profile.email}
