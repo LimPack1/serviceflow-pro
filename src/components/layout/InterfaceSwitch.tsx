@@ -21,16 +21,20 @@ export function InterfaceSwitch({ collapsed = false }: InterfaceSwitchProps) {
 
   const isSIMode = mode === 'si';
 
+  const handleClick = () => {
+    toggleMode();
+  };
+
   const button = (
     <Button
       variant="outline"
       size={collapsed ? "icon" : "sm"}
-      onClick={toggleMode}
+      onClick={handleClick}
       className={cn(
-        "gap-2 transition-all",
+        "gap-2 transition-all w-full",
         isSIMode 
-          ? "border-primary/50 bg-primary/10 hover:bg-primary/20" 
-          : "border-accent/50 bg-accent/10 hover:bg-accent/20"
+          ? "border-primary/50 bg-primary/10 hover:bg-primary/20 text-primary" 
+          : "border-accent/50 bg-accent/10 hover:bg-accent/20 text-accent-foreground"
       )}
     >
       {isSIMode ? (

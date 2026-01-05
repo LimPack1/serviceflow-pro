@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { useAssets, useAssetStats } from "@/hooks/useAssets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssetAssignDialog } from "./AssetAssignDialog";
+import { AssetCreateDialog } from "./AssetCreateDialog";
 
 const typeIcons: Record<string, any> = {
   desktop: Monitor,
@@ -89,6 +90,7 @@ export function InventoryList() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedAssetForAssign, setSelectedAssetForAssign] = useState<{
     id: string;
     name: string;
@@ -217,7 +219,7 @@ export function InventoryList() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="gradient">
+        <Button variant="gradient" onClick={() => setCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Ajouter un équipement
         </Button>
@@ -394,6 +396,12 @@ export function InventoryList() {
           currentAssignee={selectedAssetForAssign.assigned_user}
         />
       )}
+
+      {/* Create Dialog */}
+      <AssetCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </div>
   );
 }

@@ -73,8 +73,9 @@ export function AppSidebar() {
   };
 
   const NavItemComponent = ({ item }: { item: NavItem }) => {
-    const isActive = location.pathname === item.url || 
-      (item.url !== "/" && location.pathname.startsWith(item.url.split('?')[0]));
+    // More precise matching: exact match or starts with url followed by /
+    const isActive = location.pathname === item.url ||
+      (item.url !== "/" && location.pathname.startsWith(item.url + "/"));
     
     const content = (
       <NavLink

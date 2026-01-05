@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 
 type InterfaceMode = 'si' | 'user';
@@ -14,46 +14,52 @@ const InterfaceModeContext = createContext<InterfaceModeContextType | undefined>
 
 export function InterfaceModeProvider({ children }: { children: ReactNode }) {
   const { isITStaff, loading } = useAuth();
-  const [mode, setModeState] = useState<InterfaceMode>('si');
+  const [mode, setModeState] = useState<InterfaceMode>('user');
+  const [initialized, setInitialized] = useState(false);
 
   // Initialize mode based on user role
   useEffect(() => {
     if (!loading) {
-      // Get saved mode from localStorage if IT Staff
       if (isITStaff) {
         const savedMode = localStorage.getItem('itsm-interface-mode') as InterfaceMode;
         if (savedMode === 'user' || savedMode === 'si') {
           setModeState(savedMode);
         } else {
           setModeState('si');
+          localStorage.setItem('itsm-interface-mode', 'si');
         }
       } else {
-        // Non IT staff always in user mode
         setModeState('user');
+        localStorage.removeItem('itsm-interface-mode');
       }
+      setInitialized(true);
     }
   }, [isITStaff, loading]);
 
-  const setMode = (newMode: InterfaceMode) => {
+  const setMode = useCallback((newMode: InterfaceMode) => {
     if (isITStaff) {
       setModeState(newMode);
       localStorage.setItem('itsm-interface-mode', newMode);
     }
-  };
+  }, [isITStaff]);
 
-  const toggleMode = () => {
+  const toggleMode = useCallback(() => {
     if (isITStaff) {
       const newMode = mode === 'si' ? 'user' : 'si';
-      setMode(newMode);
+      setModeState(newMode);
+      localStorage.setItem('itsm-interface-mode', newMode);
     }
-  };
+  }, [isITStaff, mode]);
 
   // Only IT staff (admin/manager) can switch modes
   const canSwitchMode = isITStaff;
 
+  // Compute the actual mode to expose
+  const effectiveMode = isITStaff ? mode : 'user';
+
   return (
     <InterfaceModeContext.Provider value={{
-      mode: isITStaff ? mode : 'user',
+      mode: effectiveMode,
       setMode,
       canSwitchMode,
       toggleMode
